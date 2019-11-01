@@ -19,6 +19,9 @@ int main(int ac, char **argv)
 		return 1;
 	}
 
+	// Print the BPF verifier log anyway
+	printf("%s", bpf_log_buf);
+
 	sock = open_raw_sock("lo");
 
 	assert(setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, prog_fd,

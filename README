@@ -1,0 +1,6 @@
+Project to help bootstrap playing around with eBPF, adapted from the kernel's sample programs.
+
+However, these programs stand alone and do not require the kernel sources to work.
+
+As a first step, run make and experiment with the binaries.
+

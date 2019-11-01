@@ -4,3 +4,10 @@ However, these programs stand alone and do not require the kernel sources to wor
 
 As a first step, run make and experiment with the binaries.
 
+Dependencies:
+
+gcc
+clang (>= 3.8)
+llc (llvm must support BPF target)
+libelf-dev
+make :-)

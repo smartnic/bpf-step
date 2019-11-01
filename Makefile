@@ -6,9 +6,7 @@ cprogs = sock_example get-rekt-hardened
 bpfprogs = sockex1
 
 all: $(cprogs) $(bpfprogs)
-
-# %: %.o libbpf.o bpf_load.o
-# 	$(CC) $< libbpf.o bpf_load.o -o $@
+	bash perm.sh
 
 %.o: %.c
 	$(CC) -c $< -o $@

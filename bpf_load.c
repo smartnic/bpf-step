@@ -324,6 +324,111 @@ int load_bpf_file(char *path)
 	return 0;
 }
 
+int get_prog(char *path, char *progname,
+             int progname_len, int *prog_len,
+             struct bpf_insn** prog)
+{
+	int fd, i;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr, shdr_prog;
+	Elf_Data *data, *data_prog, *symbols = NULL;
+	char *shname, *shname_prog;
+
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		return 1;
+
+	fd = open(path, O_RDONLY, 0);
+	if (fd < 0)
+		return 1;
+
+	elf = elf_begin(fd, ELF_C_READ, NULL);
+
+	if (!elf)
+		return 1;
+
+	if (gelf_getehdr(elf, &ehdr) != &ehdr)
+		return 1;
+
+	/* scan over all elf sections to get license and map info */
+	for (i = 1; i < ehdr.e_shnum; i++) {
+
+		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
+			continue;
+
+		if (0) /* helpful for llvm debugging */
+			printf("section %d:%s data %p size %zd link %d flags %d\n",
+			       i, shname, data->d_buf, data->d_size,
+			       shdr.sh_link, (int) shdr.sh_flags);
+
+		if (strcmp(shname, "license") == 0) {
+			processed_sec[i] = true;
+			memcpy(license, data->d_buf, data->d_size);
+		} else if (strcmp(shname, "version") == 0) {
+			processed_sec[i] = true;
+			if (data->d_size != sizeof(int)) {
+				printf("invalid size of version section %zd\n",
+				       data->d_size);
+				return 1;
+			}
+			memcpy(&kern_version, data->d_buf, sizeof(int));
+		} else if (strcmp(shname, "maps") == 0) {
+			processed_sec[i] = true;
+			if (load_maps(data->d_buf, data->d_size))
+				return 1;
+		} else if (shdr.sh_type == SHT_SYMTAB) {
+			symbols = data;
+		}
+	}
+
+	/* load programs that need map fixup (relocations) */
+	for (i = 1; i < ehdr.e_shnum; i++) {
+
+		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
+			continue;
+		if (shdr.sh_type == SHT_REL) {
+			struct bpf_insn *insns;
+
+			if (get_sec(elf, shdr.sh_info, &ehdr, &shname_prog,
+				    &shdr_prog, &data_prog))
+				continue;
+
+			insns = (struct bpf_insn *) data_prog->d_buf;
+
+			processed_sec[shdr.sh_info] = true;
+			processed_sec[i] = true;
+
+			if (parse_relo_and_apply(data, symbols, &shdr, insns))
+				continue;
+
+      if (memcmp(shname_prog, progname, progname_len) == 0) {
+        *prog_len = data_prog->d_size;
+        *prog = insns;
+        return 0;
+      }
+		}
+	}
+
+	/* load programs that don't use maps */
+	for (i = 1; i < ehdr.e_shnum; i++) {
+
+		if (processed_sec[i])
+			continue;
+
+		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
+			continue;
+
+    if (memcmp(shname, progname, progname_len) == 0) {
+      *prog_len = data->d_size;
+      *prog = data->d_buf;
+      return 0;
+    }
+	}
+
+	close(fd);
+	return 0;
+}
+
 void read_trace_pipe(void)
 {
 	int trace_fd;

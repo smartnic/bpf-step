@@ -22,6 +22,11 @@ extern int event_fd[MAX_PROGS];
  */
 int load_bpf_file(char *path);
 
+/* parses elf file, and returns a bpf_insn* for the program name that
+ * is requested. */
+int get_prog(char *path, char *progname, int progname_len, int
+             *prog_len, struct bpf_insn **prog);
+
 void read_trace_pipe(void);
 
 #endif

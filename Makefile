@@ -21,6 +21,9 @@ sockex1_kern.o: sockex1_kern.c
 	$(BPFCC) -O2 -emit-llvm -c $< -o -| $(BPFLLC) -march=bpf -filetype=obj -o $@
 	$(BPFCC) -O2 -emit-llvm -c $< -o -| $(BPFLLC) -march=bpf -filetype=asm -o $@.s
 
+loader: loader.o bpf_load.o libbpf.o
+	$(CC) loader.o bpf_load.o libbpf.o -lelf -o $@
+
 clean:
 	rm -f *.o *.o.s
 	rm -f $(cprogs) $(bpfprogs)

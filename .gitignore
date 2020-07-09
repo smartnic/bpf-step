@@ -4,5 +4,7 @@ sock_example
 sockex1
 get-rekt-hardened
 loader
+*.out
+*.gch
 *~
 .*~

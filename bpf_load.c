@@ -326,7 +326,7 @@ int load_bpf_file(char *path)
 int get_prog_and_data(char *path, char *progname,
              int progname_len, int *prog_len,
              struct bpf_insn** prog, int *map_len, 
-             struct bpf_map_def** maps)
+             struct bpf_map_def** maps, Elf_Data ** symtab, uint64_t *num_entries)
 {
 	int fd, i;
 	Elf *elf;
@@ -381,6 +381,8 @@ int get_prog_and_data(char *path, char *progname,
                 *maps = data->d_buf;
             }
 		} else if (shdr.sh_type == SHT_SYMTAB) {
+            *symtab = data;
+            *num_entries = (uint64_t)(shdr.sh_size / shdr.sh_entsize);
 			symbols = data;
 		}
 	}
@@ -427,7 +429,6 @@ int get_prog_and_data(char *path, char *progname,
       return 0;
     }
 	}
-
 	close(fd);
 	return 0;
 }

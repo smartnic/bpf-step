@@ -26,7 +26,11 @@ int load_bpf_file(char *path);
  * is requested. */
 int get_prog(char *path, char *progname, int progname_len, int
              *prog_len, struct bpf_insn **prog);
-
+int get_prog_and_data(char *path, char *progname,
+             int progname_len, int *prog_len,
+             struct bpf_insn** prog, int *map_len, 
+             struct bpf_map_def** maps, Elf_Data ** symtab, uint64_t *num_entries);
+ 
 void read_trace_pipe(void);
 
 #endif

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <gelf.h>
+#include <libelf.h>
 #include <stdio.h>
 #include <assert.h>
 #include <linux/bpf.h>
@@ -11,7 +13,12 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-
+void interpret_symtab (Elf_Data** , int); 
+void interpret_bpf_map_defs (struct bpf_map_def** , int);
+void determine_mnemonic(__u8, char*);
+void interpret_bpf_insns (struct bpf_insn**, int);
+void determine_map_type(unsigned int type, char * type_str);
+ 
 int main (int argc, char ** argv)
 {
 
@@ -19,47 +26,81 @@ int main (int argc, char ** argv)
 	FILE *f;
 	int i, sock;
 
-  snprintf(filename, sizeof(filename), "%s", "sockex1_kern.o");
-  // Look at SEC of original .c file to find progname
-  char * progname = "socket1"; 
-  struct bpf_insn * prog = '\0';
-  struct bpf_map_def * maps = '\0';
-  int prog_len;
-  int map_len;
+    snprintf(filename, sizeof(filename), "%s", "sockex1_kern.o");
+    // Look at SEC of original .c file to find progname
+    char * progname = "socket1"; 
+    struct bpf_insn * prog = '\0';
+    struct bpf_map_def * maps = '\0';
+    Elf_Data * elf_data = '\0';
+    int prog_len;
+    int map_len;
+    uint64_t num_entries;
 
-  if (get_prog_and_data(filename, progname, strlen(progname),
-               &prog_len, &prog, &map_len, &maps)) {
-    printf("Failed to extract a program from the provided .o filename %s"
-           " and BPF program name %s\n", argv[1], argv[2]);
-    return 1;
-  }
+    if (get_prog_and_data(filename, progname, strlen(progname),
+                 &prog_len, &prog, &map_len, &maps, &elf_data, &num_entries)) {
+      printf("Failed to extract a program from the sockex1_kern.o\n");     return 1;
+    }
     printf("Got program with a length %d \n", prog_len);
 
     if (prog == '\0') {
         printf("prog is null\n");
         return 1;
     }
-    if (maps == '\0') {
-        printf("maps is null\n");
-    }
-    else {
+    if (maps != '\0') {
         printf("Map length: %d\n", map_len);
         interpret_bpf_map_defs(&maps, map_len);
+    }
+    if (elf_data != '\0') {
+        printf("Number of symtab entries is %lu\n", (long unsigned int)num_entries);
+        interpret_symtab(&elf_data, num_entries);
     }
     interpret_bpf_insns(&prog, prog_len);
     return 0;
 }
 
-void interpret_bpf_map_defs(struct bpf_map_def ** maps, int map_len) 
+void interpret_symtab (Elf_Data ** elf_data, int num_entries) 
 {
     int i;
+    printf("Symbol table data:\n");
+    for (i = 0; i < num_entries; i++) {
+        GElf_Sym symbol;
+        gelf_getsym(*elf_data, i, &symbol);
+        // st_name is an index into strtab
+        printf("Symbol name: %lu, type: %c, visibility: %c, section index: %lu, value: %lu, size: %lu\n", 
+            (long unsigned int)symbol.st_name, (unsigned char)symbol.st_info, (unsigned char)symbol.st_other, 
+            (long unsigned int)symbol.st_shndx, (long unsigned int)symbol.st_value, (long unsigned int)symbol.st_size);
+    }
+}
+void interpret_bpf_map_defs (struct bpf_map_def ** maps, int map_len) 
+{
+    int i;
+    char * type_str = (char *)(malloc(sizeof(char)*15));
     printf("Map data:\n");
 	for (i = 0; i < map_len / sizeof(struct bpf_map_def); i++) {
         struct bpf_map_def map = (*maps)[i];
-        printf("Type: %u, key_size: %u, value_size: %u, max_entries: %u\n", map.type, map.key_size, map.value_size, map.max_entries); 
+        determine_map_type(map.type, type_str);
+        printf("Type: %s, key_size: %u, value_size: %u, max_entries: %u\n", 
+            type_str, map.key_size, map.value_size, map.max_entries); 
 	}
+    free(type_str);
 }
-void interpret_bpf_insns(struct bpf_insn ** prog, int prog_len) 
+
+void determine_map_type(unsigned int type, char * type_str) {
+	if (type == BPF_MAP_TYPE_UNSPEC) 
+        strcpy(type_str, "BPF_MAP_TYPE_UNSPEC");
+	else if (type == BPF_MAP_TYPE_HASH) 
+        strcpy(type_str, "BPF_MAP_TYPE_HASH");
+	else if (type == BPF_MAP_TYPE_ARRAY) 
+        strcpy(type_str, "BPF_MAP_TYPE_PROG_ARRAY");
+	else if (type == BPF_MAP_TYPE_PROG_ARRAY) 
+        strcpy(type_str, "BPF_MAP_TYPE_PROG_ARRAY");
+	else if (type == BPF_MAP_TYPE_PERF_EVENT_ARRAY) 
+        strcpy(type_str, "BPF_MAP_TYPE_PERF_EVENT_ARRAY");
+    else strcpy(type_str, "UNDEFINED");
+
+}
+
+void interpret_bpf_insns (struct bpf_insn ** prog, int prog_len) 
 {
     char * mnemonic = (char *)(malloc(sizeof(char)*10)); 
     int i;
@@ -70,10 +111,10 @@ void interpret_bpf_insns(struct bpf_insn ** prog, int prog_len)
         determine_mnemonic(insn.code, mnemonic);
         printf("Mnemonic: %s\n", mnemonic);
     }
-
     free(mnemonic);
  
 }
+
 void determine_mnemonic(__u8 opcode, char * mnemonic) 
 {
 
@@ -112,7 +153,6 @@ void determine_mnemonic(__u8 opcode, char * mnemonic)
     else if (opcode == 0x48)  strcpy(mnemonic, "ldindh"); 
     else if (opcode == 0x50)  strcpy(mnemonic, "ldindb"); 
     else if (opcode == 0x58)  strcpy(mnemonic, "ldinddw"); 
-
     else if (opcode == 0x61)  strcpy(mnemonic, "ldxw"); 
     else if (opcode == 0x69)  strcpy(mnemonic, "ldxh"); 
     else if (opcode == 0x71)  strcpy(mnemonic, "ldsb"); 
@@ -125,7 +165,6 @@ void determine_mnemonic(__u8 opcode, char * mnemonic)
     else if (opcode == 0x6b)  strcpy(mnemonic, "stxh"); 
     else if (opcode == 0x73)  strcpy(mnemonic, "stxb"); 
     else if (opcode == 0x7b)  strcpy(mnemonic, "stxdw"); 
-
     else if (opcode == 0x05)  strcpy(mnemonic, "ja"); 
     else if (opcode == 0x15)  strcpy(mnemonic, "jeq"); 
     else if (opcode == 0x1d)  strcpy(mnemonic, "jeq"); 
@@ -138,7 +177,6 @@ void determine_mnemonic(__u8 opcode, char * mnemonic)
     else if (opcode == 0xb5)  strcpy(mnemonic, "jle"); 
     else if (opcode == 0xbd)  strcpy(mnemonic, "jle"); 
     else if (opcode == 0x45)  strcpy(mnemonic, "jset"); 
-
     else if (opcode == 0x4d)  strcpy(mnemonic, "jet"); 
     else if (opcode == 0x55)  strcpy(mnemonic, "jne"); 
     else if (opcode == 0x5d)  strcpy(mnemonic, "jne"); 
@@ -152,6 +190,6 @@ void determine_mnemonic(__u8 opcode, char * mnemonic)
     else if (opcode == 0xdd)  strcpy(mnemonic, "jsle"); 
     else if (opcode == 0x85)  strcpy(mnemonic, "call"); 
     else if (opcode == 0x95)  strcpy(mnemonic, "exit"); 
-    else  strcpy(mnemonic, "nop");
+    else  strcpy(mnemonic, "NOP");
     
 }

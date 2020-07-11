@@ -16,7 +16,6 @@
 void interpret_symtab (Elf_Data** , int); 
 void interpret_bpf_map_defs (struct bpf_map_def** , int);
 void determine_mnemonic(__u8, char*);
-void determine_insn(__u8, char*);
 void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
  

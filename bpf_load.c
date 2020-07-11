@@ -326,7 +326,7 @@ int load_bpf_file(char *path)
 int get_prog_and_data(char *path, char *progname,
              int progname_len, int *prog_len,
              struct bpf_insn** prog, int *map_len, 
-             struct bpf_map_def** maps, Elf_Data ** symtab, uint64_t *num_entries)
+             struct bpf_map_def** maps, Elf_Data** symtab, uint64_t *num_entries)
 {
 	int fd, i;
 	Elf *elf;
@@ -508,10 +508,7 @@ int get_prog(char *path, char *progname,
 
 			if (parse_relo_and_apply(data, symbols, &shdr, insns))
 				continue;
-        printf("Calling memcmp...\n");
-        printf("shname_prog = %s, progname = %s, progname_len = %d\n", shname_prog, progname, progname_len);
       if (memcmp(shname_prog, progname, progname_len) == 0) {
-        printf("Writing to prog\n");
         *prog_len = data_prog->d_size;
         *prog = insns;
         return 0;
@@ -528,18 +525,14 @@ int get_prog(char *path, char *progname,
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
 
-        printf("shname_prog = %s, progname = %s, progname_len = %d\n", shname_prog, progname, progname_len);
-        printf("Calling memcmp...\n");
     if (memcmp(shname, progname, progname_len) == 0) {
 
-      printf("Writing to prog\n");
       *prog_len = data->d_size;
       *prog = data->d_buf;
       return 0;
     }
 	}
 
-    printf("Returning at bottom\n");
 	close(fd);
 	return 0;
 }

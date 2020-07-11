@@ -16,6 +16,7 @@
 void interpret_symtab (Elf_Data** , int); 
 void interpret_bpf_map_defs (struct bpf_map_def** , int);
 void determine_mnemonic(__u8, char*);
+void determine_insn(__u8, char*);
 void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
  
@@ -23,8 +24,6 @@ int main (int argc, char ** argv)
 {
 
 	char filename[256];
-	FILE *f;
-	int i, sock;
 
     snprintf(filename, sizeof(filename), "%s", "sockex1_kern.o");
     // Look at SEC of original .c file to find progname
@@ -37,8 +36,9 @@ int main (int argc, char ** argv)
     uint64_t num_entries;
 
     if (get_prog_and_data(filename, progname, strlen(progname),
-                 &prog_len, &prog, &map_len, &maps, &elf_data, &num_entries)) {
-      printf("Failed to extract a program from the sockex1_kern.o\n");     return 1;
+             &prog_len, &prog, &map_len, &maps, &elf_data, &num_entries)) {
+      printf("Failed to extract a program from sockex1_kern.o\n");     
+      return 1;
     }
     printf("Got program with a length %d \n", prog_len);
 
@@ -47,7 +47,7 @@ int main (int argc, char ** argv)
         return 1;
     }
     if (maps != '\0') {
-        printf("Map length: %d\n", map_len);
+        printf("Number of maps: %d\n", (map_len / sizeof(struct bpf_map_def)));
         interpret_bpf_map_defs(&maps, map_len);
     }
     if (elf_data != '\0') {
@@ -190,6 +190,7 @@ void determine_mnemonic(__u8 opcode, char * mnemonic)
     else if (opcode == 0xdd)  strcpy(mnemonic, "jsle"); 
     else if (opcode == 0x85)  strcpy(mnemonic, "call"); 
     else if (opcode == 0x95)  strcpy(mnemonic, "exit"); 
+    // For opcodes not specified in docs 
     else  strcpy(mnemonic, "NOP");
     
 }

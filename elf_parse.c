@@ -13,12 +13,19 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+typedef struct {
+    int fd;
+    struct bpf_map_def attributes;        
+} MapData;
+
 void interpret_symtab (Elf_Data** , int); 
 void interpret_bpf_map_defs (struct bpf_map_def** , int);
 void determine_mnemonic(__u8, char*);
 void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
- 
+
+MapData* init_map_data_list (struct bpf_map_def**, int);
+
 int main (int argc, char ** argv)
 {
 
@@ -47,7 +54,8 @@ int main (int argc, char ** argv)
     }
     if (maps != '\0') {
         printf("Number of maps: %lu\n", (map_len / sizeof(struct bpf_map_def)));
-        interpret_bpf_map_defs(&maps, map_len);
+        MapData* map_data_list = init_map_data_list(&maps, map_len);
+        free(map_data_list);
     }
     if (elf_data != '\0') {
         printf("Number of symtab entries is %lu\n", (long unsigned int)num_entries);
@@ -70,21 +78,28 @@ void interpret_symtab (Elf_Data ** elf_data, int num_entries)
             symbol.st_shndx, symbol.st_value, symbol.st_size);
     }
 }
-void interpret_bpf_map_defs (struct bpf_map_def ** maps, int map_len) 
+
+MapData* init_map_data_list (struct bpf_map_def ** maps, int map_len) 
 {
+    int num_of_maps = map_len / sizeof (struct bpf_map_def);
+    MapData * bpf_map_data_list = (MapData *)(malloc(sizeof(MapData) * num_of_maps));
+
     int i;
+
     char * type_str = (char *)(malloc(sizeof(char)*15));
-    printf("Map data:\n");
-	for (i = 0; i < map_len / sizeof(struct bpf_map_def); i++) {
+	for (i = 0; i < num_of_maps; i++) {
         struct bpf_map_def map = (*maps)[i];
+        MapData bpf_map_data = { fd : map_fd[i], attributes : map };
         determine_map_type(map.type, type_str);
+        bpf_map_data_list[i] = bpf_map_data;
         printf("Type: %s, key_size: %u, value_size: %u, max_entries: %u, file descriptor: %d\n", 
             type_str, map.key_size, map.value_size, 
-            map.max_entries, map_fd[i]); 
+            map.max_entries, bpf_map_data.fd); 
 	}
     free(type_str);
-}
+    return bpf_map_data_list;
 
+}
 void determine_map_type(unsigned int type, char * type_str) {
 	if (type == BPF_MAP_TYPE_UNSPEC) 
         strcpy(type_str, "BPF_MAP_TYPE_UNSPEC");

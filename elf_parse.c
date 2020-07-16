@@ -78,8 +78,9 @@ void interpret_bpf_map_defs (struct bpf_map_def ** maps, int map_len)
 	for (i = 0; i < map_len / sizeof(struct bpf_map_def); i++) {
         struct bpf_map_def map = (*maps)[i];
         determine_map_type(map.type, type_str);
-        printf("Type: %s, key_size: %u, value_size: %u, max_entries: %u\n", 
-            type_str, map.key_size, map.value_size, map.max_entries); 
+        printf("Type: %s, key_size: %u, value_size: %u, max_entries: %u, file descriptor: %d\n", 
+            type_str, map.key_size, map.value_size, 
+            map.max_entries, map_fd[i]); 
 	}
     free(type_str);
 }

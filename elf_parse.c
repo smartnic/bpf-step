@@ -65,9 +65,9 @@ void interpret_symtab (Elf_Data ** elf_data, int num_entries)
         GElf_Sym symbol;
         gelf_getsym(*elf_data, i, &symbol);
         // st_name is an index into strtab
-        printf("Symbol name: %04x, type: %01x, visibility: %01x, section index: %02x, value: %04x, size: %04x\n", 
-            symbol.st_name, ELF64_ST_TYPE(symbol.st_info), ELF64_ST_VISIBILITY(symbol.st_other), 
-            (long unsigned int)symbol.st_shndx, (long unsigned int)symbol.st_value, (long unsigned int)symbol.st_size);
+        printf("Name: %04x, type: %02x, visibility: %02x, section idx: %02x, value: %04x, size: %02x\n", 
+            symbol.st_name, symbol.st_info, symbol.st_other, 
+            symbol.st_shndx, symbol.st_value, symbol.st_size);
     }
 }
 void interpret_bpf_map_defs (struct bpf_map_def ** maps, int map_len) 
@@ -101,7 +101,6 @@ void determine_map_type(unsigned int type, char * type_str) {
 
 void interpret_bpf_insns (struct bpf_insn ** prog, int prog_len) 
 {
-    char * mnemonic = (char *)(malloc(sizeof(char)*10)); 
     int i;
     printf("eBPF instructions:\n");
     for (i = 0; i < prog_len / sizeof(struct bpf_insn); ++i) {
@@ -109,9 +108,7 @@ void interpret_bpf_insns (struct bpf_insn ** prog, int prog_len)
         // op:8, dst_reg:4, src_reg:4, off:16, imm:32
         printf("op: %02x, src reg: %01x, dst reg: %01x, off: %04x, imm: %08x\t\n", 
             insn.code, insn.src_reg, insn.dst_reg, insn.off, insn.imm);
-        determine_mnemonic(insn.code, mnemonic);
     }
-    free(mnemonic);
  
 }
 

@@ -4,6 +4,8 @@
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
+#include <gelf.h>
+#include "bpf_helpers.h"
 extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];

@@ -23,7 +23,6 @@ void interpret_bpf_map_defs (struct bpf_map_def** , int);
 void determine_mnemonic(__u8, char*);
 void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
-
 MapData* init_map_data_list (struct bpf_map_def**, int);
 
 int main (int argc, char ** argv)
@@ -75,7 +74,7 @@ void interpret_symtab (Elf_Data ** elf_data, int num_entries)
         // st_name is an index into strtab
         printf("Name: %04x, type: %02x, visibility: %02x, section idx: %02x, value: %04x, size: %02x\n", 
             symbol.st_name, symbol.st_info, symbol.st_other, 
-            symbol.st_shndx, symbol.st_value, symbol.st_size);
+            symbol.st_shndx, (unsigned int)symbol.st_value, (unsigned int)symbol.st_size);
     }
 }
 

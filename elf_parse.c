@@ -25,14 +25,18 @@ void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
 MapData* init_map_data_list (struct bpf_map_def**, int);
 
+// Example:
+//
+// ./elf_parse sockex1_kern.o socket1
 int main (int argc, char ** argv)
 {
 
-	char filename[256];
-
-    snprintf(filename, sizeof(filename), "%s", "sockex1_kern.o");
-    // Look at SEC of original .c file to find progname
-    char * progname = "socket1"; 
+    if (argc != 3) {
+        printf("Usage: elf_parse </path/to/prog.o> <progname>\n");
+        return 1;
+    }
+    char * filename = argv[1];
+    char * progname = argv[2];
     struct bpf_insn * prog = '\0';
     struct bpf_map_def * maps = '\0';
     Elf_Data * elf_data = '\0';
@@ -40,9 +44,10 @@ int main (int argc, char ** argv)
     int map_len;
     uint64_t num_entries;
 
+
     if (get_prog_and_data(filename, progname, strlen(progname),
              &prog_len, &prog, &map_len, &maps, &elf_data, &num_entries)) {
-      printf("Failed to extract a program from sockex1_kern.o\n");     
+      printf("Failed to extract a program from %s\n", filename);     
       return 1;
     }
     printf("Got program with a length %d \n", prog_len);
@@ -85,7 +90,7 @@ MapData* init_map_data_list (struct bpf_map_def ** maps, int map_len)
 
     int i;
 
-    char * type_str = (char *)(malloc(sizeof(char)*15));
+    char * type_str = (char *)(malloc(sizeof(char)*40));
 	for (i = 0; i < num_of_maps; i++) {
         struct bpf_map_def map = (*maps)[i];
         MapData bpf_map_data = { fd : map_fd[i], attributes : map };

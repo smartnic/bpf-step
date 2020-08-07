@@ -17,12 +17,16 @@ typedef struct {
     int fd;
     struct bpf_map_def attributes;        
 } MapData;
-
+void interpret_bpf_insns (struct bpf_insn**, int);
+void write_insns (struct bpf_insn**, int, char*);
 void interpret_symtab (Elf_Data** , int); 
 void interpret_bpf_map_defs (struct bpf_map_def** , int);
 void determine_mnemonic(__u8, char*);
-void interpret_bpf_insns (struct bpf_insn**, int);
 void determine_map_type(unsigned int type, char * type_str);
+
+void fix_progname(char *, char *);
+void prepend_ins_path(char *, char *);
+
 MapData* init_map_data_list (struct bpf_map_def**, int);
 
 // Example:
@@ -37,6 +41,9 @@ int main (int argc, char ** argv)
     }
     char * filename = argv[1];
     char * progname = argv[2];
+    char full_progname[50];
+    char fixed_progname[50];
+
     struct bpf_insn * prog = '\0';
     struct bpf_map_def * maps = '\0';
     Elf_Data * elf_data = '\0';
@@ -65,10 +72,16 @@ int main (int argc, char ** argv)
         printf("Number of symtab entries is %lu\n", (long unsigned int)num_entries);
         interpret_symtab(&elf_data, num_entries);
     }
-    interpret_bpf_insns(&prog, prog_len);
+        if (prog != '\0') {
+        	interpret_bpf_insns(&prog, prog_len);
+            fix_progname(progname, fixed_progname);
+            prepend_ins_path(fixed_progname, full_progname);
+            write_insns(&prog, prog_len, full_progname);
+        }
+
+
     return 0;
 }
-
 void interpret_symtab (Elf_Data ** elf_data, int num_entries) 
 {
     int i;
@@ -118,18 +131,52 @@ void determine_map_type(unsigned int type, char * type_str) {
     else strcpy(type_str, "UNDEFINED");
 
 }
+void fix_progname(char* progname, char* fixed_progname) 
+{
+    char buf[50];
+    for (int i = 0; i < strlen(progname); ++i) {
+        if (progname[i] == '/') buf[i] = '-';
+        else buf[i] = progname[i];
+    }
+    buf[strlen(progname)] = '\0';
+    printf("buf = %s\n", buf);
+    strcpy(fixed_progname, buf);
+}
 
-void interpret_bpf_insns (struct bpf_insn ** prog, int prog_len) 
+void interpret_bpf_insns(struct bpf_insn ** prog, int prog_len) 
 {
     int i;
     printf("eBPF instructions:\n");
     for (i = 0; i < prog_len / sizeof(struct bpf_insn); ++i) {
         struct bpf_insn insn = (*prog)[i];
         // op:8, dst_reg:4, src_reg:4, off:16, imm:32
-        printf("op: %02x, src reg: %01x, dst reg: %01x, off: %04x, imm: %08x\t\n", 
-            insn.code, insn.src_reg, insn.dst_reg, insn.off, insn.imm);
+        printf("%d: op - %02x, src reg - %01x, dst reg - %01x, off - %04x, imm - %08x\t\n", 
+            i, insn.code, insn.src_reg, insn.dst_reg, insn.off, insn.imm);
     }
- 
+}
+
+void write_insns(struct bpf_insn ** prog, int prog_len, char* full_progname) 
+{
+    FILE *fp;
+    printf("Writing to %s\n", full_progname);
+
+    fp = fopen(full_progname, "w");
+    int i;
+    struct bpf_insn insn;
+    for (i = 0; i < prog_len / sizeof(struct bpf_insn); ++i) {
+        insn = (*prog)[i];
+        struct bpf_insn test_insn = { insn.code, insn.src_reg, insn.dst_reg, insn.off, insn.imm };
+        // op:8, dst_reg:4, src_reg:4, off:16, imm:32
+        fwrite(&test_insn, sizeof(struct bpf_insn), 1, fp);
+    }
+    fclose(fp); 
+}
+void prepend_ins_path(char* progname, char* full_progname) 
+{
+    char buf[60];
+    snprintf(buf, 60, "%s.ins", progname); 
+    strcpy(full_progname, buf);
+
 }
 
 void determine_mnemonic(__u8 opcode, char * mnemonic) 

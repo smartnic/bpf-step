@@ -42,16 +42,16 @@ static int test_sock(void)
 
 	struct bpf_insn prog[] = {
 		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-		BPF_LD_ABS(BPF_B, ETH_HLEN + offsetof(struct iphdr, protocol) /* R0 = ip->proto */),
-		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, -4), /* *(u32 *)(fp - 4) = r0 */
+		BPF_LD_ABS(BPF_B, ETH_HLEN + offsetof(struct iphdr, protocol) ),
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, -4), 
 		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
-		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4), /* r2 = fp - 4 */
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4), 
 		BPF_LD_MAP_FD(BPF_REG_1, map_fd),
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
-		BPF_MOV64_IMM(BPF_REG_1, 1), /* r1 = 1 */
-		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_0, BPF_REG_1, 0, 0), /* xadd r0 += r1 */
-		BPF_MOV64_IMM(BPF_REG_0, 0), /* r0 = 0 */
+		BPF_MOV64_IMM(BPF_REG_1, 1), 
+		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_0, BPF_REG_1, 0, 0), 
+		BPF_MOV64_IMM(BPF_REG_0, 0), 
 		BPF_EXIT_INSN(),
 	};
 

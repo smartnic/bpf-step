@@ -81,7 +81,7 @@ static int benchmark(void)
 	(void) f;
      
     printf("************ PROGRAM SUCCESSFULLY LOADED **************\n");
-    sleep(2);
+    sleep(1);
 
 
     int key_0 = 0;

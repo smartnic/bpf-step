@@ -25,7 +25,7 @@ int main(int ac, char **argv)
 	sock = open_raw_sock("lo");
 
 	assert(setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, prog_fd,
-			  sizeof(prog_fd[0])) == 0);
+			  sizeof(prog_fd)) == 0);
 
 	f = popen("ping -c5 localhost", "r");
 	(void) f;

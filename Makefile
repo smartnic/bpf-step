@@ -3,7 +3,7 @@ BPFCC=clang
 BPFLLC=llc
 
 cprogs = sock_example get-rekt-hardened
-bpfprogs = sockex1
+bpfprogs = sockex1 elf_parse
 
 all: $(cprogs) $(bpfprogs)
 	bash perm.sh
@@ -16,6 +16,9 @@ sock_example: sock_example.o libbpf.o
 
 sockex1: sockex1_user.o sockex1_kern.o bpf_load.o libbpf.o 
 	$(CC) sockex1_user.o bpf_load.o libbpf.o -lelf -o $@
+
+elf_parse: elf_parse.o bpf_load.o libbpf.o 
+	$(CC) elf_parse.o bpf_load.o libbpf.o -lelf -o $@
 
 sockex1_kern.o: sockex1_kern.c
 	$(BPFCC) -O2 -emit-llvm -c $< -o -| $(BPFLLC) -march=bpf -filetype=obj -o $@

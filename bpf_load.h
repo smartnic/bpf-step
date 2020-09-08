@@ -4,6 +4,8 @@
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
+#include <gelf.h>
+#include "bpf_helpers.h"
 extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];
@@ -26,7 +28,11 @@ int load_bpf_file(char *path);
  * is requested. */
 int get_prog(char *path, char *progname, int progname_len, int
              *prog_len, struct bpf_insn **prog);
-
+int get_prog_and_data(char *path, char *progname,
+             int progname_len, int *prog_len,
+             struct bpf_insn** prog, int *map_len, 
+             struct bpf_map_def** maps, Elf_Data ** symtab, uint64_t *num_entries);
+ 
 void read_trace_pipe(void);
 
 #endif
